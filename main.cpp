@@ -21,10 +21,10 @@ struct Card {
     Card(string c, int n) : color(c), number(n), type("") {}
 
     // Constructor for wild cards
-    Card(string t) : color(""), number(-1), type(t) {}
+    Card(int n,string t) : color(""), number(n), type(t) {}
 
     // Constructor for special cards
-    Card(string c,string t) : color(c), number(-1), type(t) {}
+    Card(string c,int n,string t) : color(c), number(n), type(t) {}
     void printCard() const {
         if (type == "wild" || type == "wildDraw4") {
             cout << type<<endl;
@@ -57,16 +57,16 @@ public:
         // Adding special cards (skip, reverse, draw2) for each color
         for (const string& color : colors) {
             for (int i = 0; i < 2; ++i) {  // Each color has 2 special cards
-                cards.push_back(Card(color,"skip"));
-                cards.push_back(Card(color,"reverse"));
-                cards.push_back(Card(color,"draw2"));
+                cards.push_back(Card(color,11,"skip"));
+                cards.push_back(Card(color,12,"reverse"));
+                cards.push_back(Card(color,13,"draw2"));
             }
         }
 
         // Adding wild cards
         for (int i = 0; i < 4; ++i) {
-            cards.push_back(Card("wild"));
-            cards.push_back(Card("wildDraw4"));
+            cards.push_back(Card(14,"wild"));
+            cards.push_back(Card(15,"wildDraw4"));
         }
 
         // Shuffle the deck
@@ -112,21 +112,29 @@ public:
         cout << endl;
     }
 
-    bool canPlay(const Card& topCard, const Card& card, bool colorForced, string forcedColor) {
+    bool canPlay(const Card& topCard, const Card& card, string forcedColor,int pendingDrawCards) {
         // Wild cards can always be played
-        if (card.type == "wild" || card.type == "wildDraw4") {
+        if ((card.type == "wildDraw4"&&topCard.type!= "wild")&& topCard.type != "draw2") {
             return true;
         }
-
+        if((card.type == "wild"&& topCard.type !="wildDraw4")&& topCard.type!="draw2") {
+			return true;
+		}
         // If color is forced (from previous wild card)
-        if (colorForced) {
+        if ((topCard.type=="wildDraw4"|| topCard.type == "wild")&& pendingDrawCards==0) {
             return card.color == forcedColor;
         }
-
+        if(card.type == "draw2" && topCard.type=="draw2") {
+			return true;
+		}
+        if (card.type == "skip" && topCard.type == "skip") {
+            return true;
+        }
+        if (card.type == "reverse" && topCard.type == "reverse") {
+            return true;
+        }
         // Normal play rules
-        return (card.color == topCard.color ||
-            card.number == topCard.number ||
-            card.type == topCard.type);
+        return ((card.color == topCard.color || card.number == topCard.number));
     }
 };
 
@@ -141,20 +149,21 @@ private:
     bool skipNextPlayer;
     bool gameOver;
     int pendingDrawCards = 0;  // Tracks accumulated draw cards in a chain
-    string pendingDrawType = ""; // Tracks the type of draw card in the chain
-    string forcedColor = "";
-    bool colorForced = false;
+    string pendingDrawType ; // Tracks the type of draw card in the chain
+    string forcedColor;
+    //bool colorForced = false;
 public:
-    UnoGame(int numPlayers) {
+    UnoGame(int numPlayers,string name) {
         reverseDirection = false;
         skipNextPlayer = false;
         gameOver = false;
         currentPlayer = 0;
-
+        pendingDrawType = "";
+        forcedColor = "";
         // Create players (including the user)
         for (int i = 0; i < numPlayers; ++i) {
             if (i == 0) {
-                players.push_back(Player("zain"));
+                players.push_back(Player(name));
             }
             else {
                 players.push_back(Player("AI " + to_string(i)));
@@ -170,6 +179,23 @@ public:
 
         // Start with a random top card
         topCard = deck.drawCard();
+        while (topCard.type == "wildDraw4" || topCard.type == "wild") {
+            // If the first card is a wildDraw4, put it back and draw a new one
+            deck.cards.push_back(topCard); // Put it back in the deck
+            topCard = deck.drawCard(); // Add to existing chain
+        }
+        if (topCard.type == "draw2") {
+            pendingDrawType = "draw2";
+            pendingDrawCards += 2; // Add to existing chain
+        }
+        else if (topCard.type == "skip")
+        {
+            skipNextPlayer = true;
+        }
+		else if (topCard.type == "reverse")
+		{
+			reverseDirection = !reverseDirection;
+		}
     }
 
     void nextPlayer() {
@@ -203,7 +229,7 @@ public:
         }
         else if (card.type == "wild" || card.type == "wildDraw4") {
             // Player chooses color
-            if (players[currentPlayer].name == "zain") {
+            if (1) {
                 cout << "Choose a color (Red, Green, Blue, Yellow): ";
                 cin >> forcedColor;
             }
@@ -213,7 +239,7 @@ public:
                 forcedColor = colors[rand() % 4];
                 cout << "AI chose color: " << forcedColor << endl;
             }
-            colorForced = true;
+            //colorForced = true;
 
             if (card.type == "wildDraw4") {
                 pendingDrawCards += 4;
@@ -230,9 +256,7 @@ public:
     void playTurn() {
         Player& player = players[currentPlayer];
 
-        bool currentColorForced = colorForced;
         string currentForcedColor = forcedColor;
-        colorForced = false;
 
         if (skipNextPlayer) {
             cout << "Skipping " << player.name << "'s turn.\n";
@@ -266,9 +290,14 @@ public:
                     player.addCard(deck.drawCard());
                 }
                 pendingDrawCards = 0;
+                
+                if(pendingDrawType== "wildDraw4") {
+                    forcedColor = currentForcedColor;
+                    cout<<"Color forced: "<<forcedColor<<endl;
+				}
                 pendingDrawType = "";
             }
-            else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1],colorForced, forcedColor)) {
+            else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1], forcedColor,pendingDrawCards)) {
                 topCard = player.hand[cardChoice - 1];
                 player.removeCard(cardChoice - 1);
 
@@ -301,7 +330,7 @@ public:
             if (cardChoice == 0) {
                 player.addCard(deck.drawCard());
             }
-            else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1], currentColorForced, currentForcedColor)) {
+            else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1], currentForcedColor,pendingDrawCards)) {
                 topCard = player.hand[cardChoice - 1];
                 player.removeCard(cardChoice - 1);
                 handleSpecialCards(topCard);
@@ -334,13 +363,15 @@ int main() {
     int numPlayers;
     cout << "Enter the number of players (2 to 10): ";
     cin >> numPlayers;
-
+    string name;
+    cout << "Enter your name: ";
+    cin >> name;
     if (numPlayers < 2 || numPlayers > 10) {
         cout << "Invalid number of players!" << endl;
         return 1;
     }
 
-    UnoGame game(numPlayers);
+    UnoGame game(numPlayers,name);
     game.play();
 
     return 0;
