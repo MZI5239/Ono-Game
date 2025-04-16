@@ -5,6 +5,14 @@
 #include <cstdlib>
 #include <algorithm>  // For shuffle
 #include <random>     // For random engine
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"
+#define BLUE    "\033[34m"
+#define CYAN    "\033[36m"
+#define MAGENTA "\033[35m"
+#define BOLD    "\033[1m"
 
 using namespace std;
 
@@ -26,18 +34,25 @@ struct Card {
     // Constructor for special cards
     Card(string c,int n,string t) : color(c), number(n), type(t) {}
     void printCard() const {
+        string colorCode;
+
+        if (color == "Red") colorCode = RED;
+        else if (color == "Green") colorCode = GREEN;
+        else if (color == "Blue") colorCode = BLUE;
+        else if (color == "Yellow") colorCode = YELLOW;
+        else colorCode = MAGENTA; // For wilds
+
         if (type == "wild" || type == "wildDraw4") {
-            cout << type<<endl;
+            cout << BOLD << colorCode << type << RESET << endl;
         }
-        else if (number == -1)
-        {
-            cout<<color<<" (" << type<<")"<<endl;
+        else if (type == "reverse" || type == "draw2" || type == "skip") {
+            cout << BOLD << colorCode << color << " (" << type << ")" << RESET << endl;
         }
-        else
-        {
-            cout << color << " (" << number << ")"<<endl;
+        else {
+            cout << BOLD << colorCode << color << " (" << number << ")" << RESET << endl;
         }
     }
+
 };
 
 // Deck class
@@ -266,14 +281,16 @@ public:
         }
 
         int cardChoice;
-        cout << "Top card: ";
+        cout << BOLD << "Top card: ";
         topCard.printCard();
-        cout << endl;
+        cout << RESET << endl;
+
 
         // Show pending draws if any
         if (pendingDrawCards > 0) {
-            cout << "PENDING TO DRAW: " << pendingDrawCards << " cards!\n";
+            cout << BOLD << CYAN << "PENDING TO DRAW: " << pendingDrawCards << " cards!\n" << RESET;
         }
+
 
         cout << player.name << "'s turn.\n";
         cout << "Your hand: " << endl;
@@ -343,7 +360,7 @@ public:
 
         // Check if the current player has won
         if (player.hand.empty()) {
-            cout << player.name << " wins!" << endl;
+            cout << BOLD << GREEN << player.name << " wins!" << RESET << endl;
             gameOver = true;
             return;
         }
