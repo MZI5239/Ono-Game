@@ -166,6 +166,8 @@ private:
     int pendingDrawCards = 0;  // Tracks accumulated draw cards in a chain
     string pendingDrawType ; // Tracks the type of draw card in the chain
     string forcedColor;
+    Card cardtaken;
+    char choice;
     //bool colorForced = false;
 public:
     UnoGame(int numPlayers,string name) {
@@ -261,10 +263,10 @@ public:
                 pendingDrawType = "wildDraw4";
             }
         }
-		else if (card.type == "draw2") {
-			pendingDrawType = "draw2";
-			pendingDrawCards += 2; // Add to existing chain
-		}
+        else if (card.type == "draw2") {
+            pendingDrawType = "draw2";
+            pendingDrawCards += 2; // Add to existing chain
+        }
         // ... rest of handleSpecialCards
     }
 
@@ -293,6 +295,11 @@ public:
 
 
         cout << player.name << "'s turn.\n";
+        if (player.name!=name)
+        {
+            //ai functionality
+
+        }
         cout << "Your hand: " << endl;
         player.printHand();
 
@@ -307,11 +314,10 @@ public:
                     player.addCard(deck.drawCard());
                 }
                 pendingDrawCards = 0;
-                
-                if(pendingDrawType== "wildDraw4") {
+                if (pendingDrawType == "wildDraw4") {
                     forcedColor = currentForcedColor;
-                    cout<<"Color forced: "<<forcedColor<<endl;
-				}
+                    cout << "Color forced: " << forcedColor << endl;
+                }
                 pendingDrawType = "";
             }
             else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1], forcedColor,pendingDrawCards)) {
@@ -346,6 +352,35 @@ public:
 
             if (cardChoice == 0) {
                 player.addCard(deck.drawCard());
+
+                if (pendingDrawCards == 0) {
+                    cardtaken = player.hand[player.hand.size() - 1];
+                    cout << "you draw :";
+                    cardtaken.printCard();
+                    if (player.canPlay(topCard, cardtaken, forcedColor, pendingDrawCards))
+                    {
+                        cout << "would you like to play this card y/n:" << endl;
+                        cin >> choice;
+                        if (choice == 'y')
+                        {
+                            topCard = player.hand[player.hand.size() - 1];
+                            player.removeCard(player.hand.size() - 1);
+                            // Handle card accumulation here
+                            if (topCard.type == "draw2" && pendingDrawType == "draw2") {
+                                pendingDrawCards += 2; // Add to existing chain
+                            }
+                            else if (topCard.type == "wildDraw4" && pendingDrawType == "wildDraw4") {
+                                pendingDrawCards += 4; // Add to existing chain
+                            }
+                            else if (topCard.type == "draw2" || topCard.type == "wildDraw4") {
+                                // Starting a new chain
+                                pendingDrawCards = (topCard.type == "draw2") ? 2 : 4;
+                            }
+
+                        }
+
+                    }
+                }
             }
             else if (cardChoice > 0 && cardChoice <= player.hand.size() && player.canPlay(topCard, player.hand[cardChoice - 1], currentForcedColor,pendingDrawCards)) {
                 topCard = player.hand[cardChoice - 1];
@@ -354,6 +389,9 @@ public:
             }
             else {
                 cout << "Invalid move! The card doesn't match the top card.\n";
+                if ((topCard.type == "wildDraw4" || topCard.type == "wild") && pendingDrawCards == 0) {
+                    cout << "you must play a " << forcedColor << " card or draw a card:" << endl;
+                }
                 return;
             }
         }
@@ -375,15 +413,14 @@ public:
         }
     }
 };
-
+string name;
 int main() {
     int numPlayers;
-    cout << "Enter the number of players (2 to 10): ";
+    cout << "Enter the number of players (3 to 10): ";
     cin >> numPlayers;
-    string name;
     cout << "Enter your name: ";
     cin >> name;
-    if (numPlayers < 2 || numPlayers > 10) {
+    if (numPlayers < 3 || numPlayers > 10) {
         cout << "Invalid number of players!" << endl;
         return 1;
     }
